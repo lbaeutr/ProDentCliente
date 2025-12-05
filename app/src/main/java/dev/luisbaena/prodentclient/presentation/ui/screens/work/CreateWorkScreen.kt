@@ -129,6 +129,7 @@ fun CreateWorkScreen(
     var precioError by rememberSaveable { mutableStateOf(false) }
     var clinicaInactivaError by rememberSaveable { mutableStateOf(false) }
     var dentistaInactivoError by rememberSaveable { mutableStateOf(false) }
+    var tipoTrabajoInactivoError by rememberSaveable { mutableStateOf(false) }
 
     // Imágenes seleccionadas (Uri no es Parcelable, usar remember normal)
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
@@ -358,6 +359,7 @@ fun CreateWorkScreen(
                     selectedTipoTrabajoId = type.id
                     selectedTipoTrabajoName = type.nombre
                     tipoTrabajoError = false
+                    tipoTrabajoInactivoError = false
                     // Auto-rellenar precio
                     type.precioBase?.let { precioBase ->
                         // Si es admin y el precio está vacío, lo rellena
@@ -373,8 +375,12 @@ fun CreateWorkScreen(
                 placeholder = "Seleccionar tipo",
                 leadingIcon = Icons.Default.Work,
                 isLoading = workTypesState.isLoading,
-                isError = tipoTrabajoError,
-                errorMessage = "Debes seleccionar un tipo de trabajo",
+                isError = tipoTrabajoError || tipoTrabajoInactivoError,
+                errorMessage = when {
+                    tipoTrabajoError -> "Debes seleccionar un tipo de trabajo"
+                    tipoTrabajoInactivoError -> "El tipo de trabajo seleccionado está inactivo"
+                    else -> ""
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .onGloballyPositioned { coordinates ->
@@ -706,6 +712,15 @@ fun CreateWorkScreen(
                         }
                     }
 
+                    // Verificar si el tipo de trabajo está activo
+                    tipoTrabajoInactivoError = false
+                    if (selectedTipoTrabajoId != null) {
+                        val selectedWorkType = workTypesState.workTypes.find { it.id == selectedTipoTrabajoId }
+                        if (selectedWorkType != null && !selectedWorkType.activo) {
+                            tipoTrabajoInactivoError = true
+                        }
+                    }
+
                     // Solo validar precio si el usuario es administrador
                     precioError = if (isAdmin) {
                         try {
@@ -719,7 +734,7 @@ fun CreateWorkScreen(
 
                     if (numeroTrabajoError || clinicaError || dentistaError ||
                         tipoTrabajoError || pacienteError || precioError ||
-                        clinicaInactivaError || dentistaInactivoError
+                        clinicaInactivaError || dentistaInactivoError || tipoTrabajoInactivoError
                     ) {
                         // Hacer focus y scroll al primer campo con error
                         coroutineScope.launch {
@@ -731,7 +746,7 @@ fun CreateWorkScreen(
 
                                 clinicaError || clinicaInactivaError -> clinicaYPosition
                                 dentistaError || dentistaInactivoError -> dentistaYPosition
-                                tipoTrabajoError -> tipoTrabajoYPosition
+                                tipoTrabajoError || tipoTrabajoInactivoError -> tipoTrabajoYPosition
                                 pacienteError -> {
                                     pacienteFocusRequester.requestFocus()
                                     pacienteYPosition
