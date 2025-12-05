@@ -127,6 +127,8 @@ fun CreateWorkScreen(
     var tipoTrabajoError by rememberSaveable { mutableStateOf(false) }
     var pacienteError by rememberSaveable { mutableStateOf(false) }
     var precioError by rememberSaveable { mutableStateOf(false) }
+    var clinicaInactivaError by rememberSaveable { mutableStateOf(false) }
+    var dentistaInactivoError by rememberSaveable { mutableStateOf(false) }
 
     // Imágenes seleccionadas (Uri no es Parcelable, usar remember normal)
     var selectedImages by remember { mutableStateOf<List<Uri>>(emptyList()) }
@@ -290,14 +292,19 @@ fun CreateWorkScreen(
                     selectedClinicaId = clinic.id
                     selectedClinicaName = clinic.nombre
                     clinicaError = false
+                    clinicaInactivaError = false
                 },
                 itemToString = { it.nombre },
                 label = "Clínica *",
                 placeholder = "Seleccionar clínica",
                 leadingIcon = Icons.Default.Business,
                 isLoading = clinicsState.isLoading,
-                isError = clinicaError,
-                errorMessage = "Debes seleccionar una clínica",
+                isError = clinicaError || clinicaInactivaError,
+                errorMessage = when {
+                    clinicaError -> "Debes seleccionar una clínica"
+                    clinicaInactivaError -> "La clínica seleccionada está inactiva"
+                    else -> ""
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .onGloballyPositioned { coordinates ->
@@ -317,6 +324,7 @@ fun CreateWorkScreen(
                     selectedDentistaId = dentist.id
                     selectedDentistaName = "${dentist.nombre} ${dentist.apellidos}"
                     dentistaError = false
+                    dentistaInactivoError = false
                 },
                 itemToString = { "${it.nombre} ${it.apellidos}" },
                 label = "Dentista *",
@@ -326,8 +334,12 @@ fun CreateWorkScreen(
                     "Seleccionar dentista",
                 leadingIcon = Icons.Default.PersonOutline,
                 isLoading = dentistsState.isLoading,
-                isError = dentistaError,
-                errorMessage = "Debes seleccionar un dentista",
+                isError = dentistaError || dentistaInactivoError,
+                errorMessage = when {
+                    dentistaError -> "Debes seleccionar un dentista"
+                    dentistaInactivoError -> "El dentista seleccionado está inactivo"
+                    else -> ""
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .onGloballyPositioned { coordinates ->
@@ -669,12 +681,30 @@ fun CreateWorkScreen(
                 text = "Crear Trabajo",
                 isLoading = formState.isLoading,
                 onClick = {
-                    // Validaciones
+                    // Validaciones básicas
                     numeroTrabajoError = numeroTrabajo.isBlank()
                     clinicaError = selectedClinicaId == null
                     dentistaError = selectedDentistaId == null
                     tipoTrabajoError = selectedTipoTrabajoId == null
                     pacienteError = pacienteNombre.isBlank()
+
+                    // Verificar si la clínica está activa
+                    clinicaInactivaError = false
+                    if (selectedClinicaId != null) {
+                        val selectedClinic = clinicsState.clinicas.find { it.id == selectedClinicaId }
+                        if (selectedClinic != null && !selectedClinic.activa) {
+                            clinicaInactivaError = true
+                        }
+                    }
+
+                    // Verificar si el dentista está activo
+                    dentistaInactivoError = false
+                    if (selectedDentistaId != null) {
+                        val selectedDentist = dentistsState.dentists.find { it.id == selectedDentistaId }
+                        if (selectedDentist != null && !selectedDentist.activo) {
+                            dentistaInactivoError = true
+                        }
+                    }
 
                     // Solo validar precio si el usuario es administrador
                     precioError = if (isAdmin) {
@@ -688,7 +718,8 @@ fun CreateWorkScreen(
                     }
 
                     if (numeroTrabajoError || clinicaError || dentistaError ||
-                        tipoTrabajoError || pacienteError || precioError
+                        tipoTrabajoError || pacienteError || precioError ||
+                        clinicaInactivaError || dentistaInactivoError
                     ) {
                         // Hacer focus y scroll al primer campo con error
                         coroutineScope.launch {
@@ -698,8 +729,8 @@ fun CreateWorkScreen(
                                     numeroTrabajoYPosition
                                 }
 
-                                clinicaError -> clinicaYPosition
-                                dentistaError -> dentistaYPosition
+                                clinicaError || clinicaInactivaError -> clinicaYPosition
+                                dentistaError || dentistaInactivoError -> dentistaYPosition
                                 tipoTrabajoError -> tipoTrabajoYPosition
                                 pacienteError -> {
                                     pacienteFocusRequester.requestFocus()
