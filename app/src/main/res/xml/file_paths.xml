@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Directorio de descargas públicas -->
+    <external-path
+        name="downloads"
+        path="Download/" />
+
+    <!-- Directorio de archivos externos de la app -->
+    <external-files-path
+        name="external_files"
+        path="." />
+
+    <!-- Directorio de caché -->
+    <cache-path
+        name="cache"
+        path="." />
+</paths>
+
